@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\SettlementApi\SettlementApi.csproj" />
+    <ProjectReference Include="..\..\src\SettlementApi\SettlementApi.csproj" />
   </ItemGroup>
 
 </Project>
