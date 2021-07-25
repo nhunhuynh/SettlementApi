@@ -113,6 +113,20 @@ namespace SettlementApi.Tests
             bookingResult.Outcome.Should().Be(BookingStatus.Successful);
         }
 
+        [Test]
+        public async Task WhenRequestHasOverlappingStartAndEndBookingTimeThenBookingShouldBeMadeSuccesfully()
+        {
+            SendFourOverlappingBooking();
+            var command = new BookSettlementCommand
+            {
+                Name = "C",
+                BookingTime = "10:30"
+            };
+            var bookingResult = await SendAsync(command);
+            bookingResult.BookingId.Should().NotBeNull();
+            bookingResult.Outcome.Should().Be(BookingStatus.Successful);
+        }
+
         private async Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request)
         {
             using var scope = _scopeFactory.CreateScope();

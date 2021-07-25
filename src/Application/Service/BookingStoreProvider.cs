@@ -12,18 +12,16 @@ namespace Application.Service
     public class BookingStoreProvider: IBookingStoreProvider
     {
         private const int MaxBookingOverlap = 4;
-        private const string StartMark = "StartMark";
-        private const string EndMark = "EndMark";
-
+        
         private ConcurrentBag<Booking> _bookingStore;
-        private SortedList<Booking, string> _timeAxis;
+        private SortedList<Booking, int> _timeAxis;
         private object _mutex = new object();
 
         public BookingStoreProvider()
         {
             _bookingStore = new ConcurrentBag<Booking>();
             var timePeriodList = new SortedList();
-            _timeAxis = new SortedList<Booking,string>();
+            _timeAxis = new SortedList<Booking,int>();
         }
 
         public async Task<Guid?> AddBooking(Booking booking)
@@ -54,13 +52,30 @@ namespace Application.Service
 
             lock (_mutex)
             {
-                _timeAxis.Add(booking, StartMark);
-                _timeAxis.Add(endBooking, EndMark);
+                //mark entering a new time period
+                if (_timeAxis.ContainsKey(booking))
+                    _timeAxis[booking] = _timeAxis[booking] + 1;
+                else
+                    _timeAxis[booking] = 1;
+
+                //mark ending an existing time period
+                if (_timeAxis.ContainsKey(endBooking))
+                    _timeAxis[endBooking] = _timeAxis[endBooking] - 1;
+                else
+                    _timeAxis[endBooking] = -1;
+
                 maxOverlap = CalculateMaxOverlap();
                 if (maxOverlap > MaxBookingOverlap)
                 {
-                    _timeAxis.Remove(booking);
-                    _timeAxis.Remove(endBooking);
+                    if (_timeAxis[booking] == 1)
+                        _timeAxis.Remove(booking);
+                    else
+                        _timeAxis[booking] = _timeAxis[booking] - 1;
+
+                    if (_timeAxis[endBooking] == 1)
+                        _timeAxis.Remove(endBooking);
+                    else
+                        _timeAxis[endBooking] = _timeAxis[endBooking] + 1;                    
                 }
             }
             return maxOverlap<=MaxBookingOverlap;         
@@ -70,12 +85,9 @@ namespace Application.Service
         {
             int maxOverlap = 0;
             int currentOpenRangeCount = 0;
-            foreach(var timeMark in _timeAxis)
-            {
-                if (timeMark.Value == StartMark)
-                    currentOpenRangeCount++;
-                if (timeMark.Value == EndMark)
-                    currentOpenRangeCount--;
+            for(int i=0;i<_timeAxis.Keys.Count;i++)
+            {              
+                currentOpenRangeCount += _timeAxis[_timeAxis.Keys[i]];  
                 maxOverlap = Math.Max(maxOverlap, currentOpenRangeCount);
             }
             return maxOverlap;
